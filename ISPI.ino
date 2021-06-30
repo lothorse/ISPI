@@ -1,7 +1,9 @@
 #include <Adafruit_NeoPixel.h>
 
 
-/*Last updated July 29th 2021
+/*Last updated July 30th
+ Pins 0,1, 8 and possibly 4 are borked. 
+ July 29th 2021
  - pin numbers match soldered hardware
  - LED numbers reduced to 24
  - set knob range : 1023 - about 60
@@ -64,7 +66,7 @@ uint16_t paleBlueHue = 32768;
 uint32_t green = strip.Color(0, 255, 0);
 uint32_t yellow = strip.Color(255, 255, 0);
 uint32_t purple = strip.Color(99, 3, 48);
-uint32_t paleBlue = strip.gamma32(strip.ColorHSV(paleBlueHue, 255, 25));
+uint32_t paleBlue = strip.gamma32(strip.ColorHSV(paleBlueHue, 255, 255));
 uint32_t speakerColours[24];
 
 void setup() {
@@ -140,7 +142,7 @@ int outputValue(int sensorNum){ //function that takes in an index and returns th
   else{
     output = brightness;
   }
-  speakerColours[sensorNum] = strip.gamma32(strip.ColorHSV(paleBlueHue - paleBlueHue*output/127, 255, 25));
+  speakerColours[sensorNum] = strip.gamma32(strip.ColorHSV(paleBlueHue - paleBlueHue*output/127, 255, 255));
   return output;
 }
 
