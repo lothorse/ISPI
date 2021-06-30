@@ -61,19 +61,24 @@ int knobHighLow[2] = {65, 1023};
 int knobValue;
 
 uint32_t green = strip.Color(0, 255, 0);
+uint32_t yellow = strip.Color(255, 255, 0);
+
 
 void setup() {
   
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.clear();
   strip.show();            // Turn OFF all pixels ASAP
   strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
   
   pinMode(buttonPin, INPUT);
   pinMode(switchPin, INPUT);
+
+  goodMorning();
   
   while(buttonState != HIGH){
   //Calibrate every sensor until you press the button
-    Serial.print("in first part of calibration");
+    //Serial.print("in first part of calibration");
     for(int i = 0; i < 24; i++){ //first calibrate all max values
       sensorVal = analogRead(analoguePins[i]);
       if(sensorVal > highLowValues[i][0]){
@@ -96,19 +101,16 @@ void setup() {
 
 void loop() {
   //turn off all LEDs
-  Serial.print("In loop");
   strip.clear();
-  strip.show();
-  strip.setPixelColor(5, green);
   strip.show();
 
   switchState = digitalRead(switchPin);
   if(switchState == LOW){
-    Serial.print("switch = low");
+    //Serial.print("switch = low");
     learnMode();
   }
   else if(switchState == HIGH){
-    Serial.print("switch = high");
+    //Serial.print("switch = high");
     listenMode();
   }
 }
@@ -225,4 +227,25 @@ void listenMode(){ //activated when switch is "on"
   knobValue = analogRead(knobPin);
   delay(20); //wait 20ms again, once we've been through all 12 channels a second time.
   
+}
+
+void goodMorning(){
+    for(int i=0; i<LED_COUNT; i++) { // For each pixel...
+      strip.setPixelColor(i, yellow);
+      strip.show();   // Send the updated pixel colors to the hardware.
+      delay(80); // Pause before next pass through loop
+    }
+    strip.clear();
+    strip.show();
+    delay(500);
+    for(int j=0; j<2; j++){
+      for(int i=0; i<LED_COUNT; i++) { // For each pixel...
+        strip.setPixelColor(i, yellow);
+      }
+      strip.show();   // Send the updated pixel colors to the hardware.
+      delay(500); // Pause before next pass through loop
+      strip.clear();
+      strip.show();
+      delay(500);
+    }
 }
