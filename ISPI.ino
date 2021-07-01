@@ -2,7 +2,7 @@
 
 
 /*Last updated July 30th
- Pins 0,1, 8 and possibly 4 are borked. 
+ Pins 0,1, 7 and possibly 4 are borked.
  July 29th 2021
  - pin numbers match soldered hardware
  - LED numbers reduced to 24
@@ -124,14 +124,24 @@ void loop() {
 }
 
 int outputValue(int sensorNum){ //function that takes in an index and returns the reading of the corresponding sensor/analogue pin.
-  int sensorHigh = highLowValues[sensorNum][0];
-  int sensorLow = highLowValues[sensorNum][1];
-  int knobValue = analogRead(knobPin);
-  int knob_Normalised = map(knobValue, knobHighLow[1], knobHighLow[0], 0, 100);
-  int lowRange = -110+knob_Normalised; //the lowest value you want to adjust to
-  int highRange = 140+knob_Normalised; //the highest value you want to adjust to (determines sensitivity)
-  sensorVal = analogRead(analoguePins[sensorNum]);
-  int brightness = map(sensorVal, sensorHigh, sensorLow, lowRange, highRange);
+  int brightness;
+  if(sensorNum == 0 || sensorNum == 1 || sensorNum == 7){
+    brightness = 0;
+  }
+  else{
+    int sensorHigh = highLowValues[sensorNum][0];
+    int sensorLow = highLowValues[sensorNum][1];
+    int knobValue = analogRead(knobPin);
+    int knob_Normalised = map(knobValue, knobHighLow[1], knobHighLow[0], 0, 100);
+    if(knob_Normalised < 0){
+      knob_Normalised = 0;
+    }
+    int lowRange = 0; //the lowest value you want to adjust to
+    int highRange = 255; //the highest value you want to adjust to (has some bearing on sensitivity, can be altered)
+    sensorVal = analogRead(analoguePins[sensorNum]);
+    brightness = map(sensorVal, sensorHigh, sensorLow, lowRange, highRange);
+    brightness = map(brightness, lowRange+knob_Normalised, highRange, lowRange, highRange);
+  }
   int output;
   if(brightness < 0){
     output = 0;
