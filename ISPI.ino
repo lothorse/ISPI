@@ -1,7 +1,16 @@
 #include <Adafruit_NeoPixel.h>
 
 
-/*Last updated July 30th
+/*Last updated February 26/23
+ Parametrised max and min CC value, adjusted max mapping value in brighntness function from 255 to 215 since the range is smaller.
+ 
+ February 25/23
+ Disabled CC 1, 2, 7, 8 and 17 by setting channel to 0. Broken pins.
+ 
+ February 24/23
+ Reset ActiveControlNumber at 24 because of indexing from 0.
+ 
+ July 30th
  Pins 0,1, 7 and possibly 4 are borked.
  July 29th 2021
  - pin numbers match soldered hardware
@@ -34,9 +43,9 @@ Patch notes:
 
 int highLowValues[24][3] = {{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0},{0, 1023, 0}};
 //Used for individually calibrating the sensors, last value in each bracket is used for holding the previus value of the sensor to avoid sending unnecaserry midi.
-
+int cyclesSinceLastChange[24] = {0};
 //this is a numbering comment     1       2       3       4       5       6       7       8       9       10       11       12       13      14      15      16      17      18      19      20      21       22       23       24
-int channelAndNumber[24][2] = {{1, 10},{2, 11},{3, 12},{4, 13},{5, 14},{6, 15},{7, 16},{8, 17},{9, 18},{10, 19},{11, 20},{12, 21}, {1, 22},{2, 23},{3, 24},{4, 25},{5, 26},{6, 27},{7, 28},{8, 29},{9, 30},{10, 31},{11, 32},{12, 33}};
+int channelAndNumber[24][2] = {{0, 10},{0, 11},{3, 12},{4, 13},{5, 14},{6, 15},{0, 16},{0, 17},{9, 18},{10, 19},{11, 20},{12, 21}, {1, 22},{2, 23},{3, 24},{4, 25},{0, 26},{6, 27},{7, 28},{8, 29},{9, 30},{10, 31},{11, 32},{12, 33}};
 //Channels go from 1 to 12 and then repeat, cc numbers go from 10 to 33. I decided to put these values in an array instead of using a loop, so as to make it as user friendly as possible, and easy to change individually.
 //Each bracket of two numbers corresponds to he analogue pin in the corresponding spot in the array below. Arrays are indexed from 0 and up. For instance, to get the control number for the first sensor you would write
 //channelAndNumber[0][1], whereas the channel for the last sensor is found in channelAndNumber[23][0]
@@ -53,6 +62,8 @@ const int knobPin = A12;
 const int LED_PIN = 3;
 const int LED_COUNT = 24;
 
+const int minCCvalue = 64;
+const int maxCCvalue = 127;
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 int buttonState = LOW; //digital (HIGH/LOW) value of button (pressed/unpressed).
@@ -125,34 +136,36 @@ void loop() {
 
 int outputValue(int sensorNum){ //function that takes in an index and returns the reading of the corresponding sensor/analogue pin.
   int brightness;
-  if(sensorNum == 0 || sensorNum == 1 || sensorNum == 7){
-    brightness = 0;
+  
+  int sensorHigh = highLowValues[sensorNum][0];
+  int sensorLow = highLowValues[sensorNum][1];
+  int knobValue = analogRead(knobPin);
+  int knob_Normalised = map(knobValue, knobHighLow[1], knobHighLow[0], 0, 100);
+  if(knob_Normalised < 0){
+    knob_Normalised = 0;
   }
-  else{
-    int sensorHigh = highLowValues[sensorNum][0];
-    int sensorLow = highLowValues[sensorNum][1];
-    int knobValue = analogRead(knobPin);
-    int knob_Normalised = map(knobValue, knobHighLow[1], knobHighLow[0], 0, 100);
-    if(knob_Normalised < 0){
-      knob_Normalised = 0;
-    }
-    int lowRange = 0; //the lowest value you want to adjust to
-    int highRange = 255; //the highest value you want to adjust to (has some bearing on sensitivity, can be altered)
-    sensorVal = analogRead(analoguePins[sensorNum]);
-    brightness = map(sensorVal, sensorHigh, sensorLow, lowRange, highRange);
-    brightness = map(brightness, lowRange+knob_Normalised, highRange, lowRange, highRange);
-  }
+  int lowRange = minCCvalue; //the lowest value you want to adjust to
+  int highRange = 215; //the highest value you want to adjust to (has some bearing on sensitivity, can be altered)
+  sensorVal = analogRead(analoguePins[sensorNum]);
+  brightness = map(sensorVal, sensorHigh, sensorLow, lowRange, highRange);
+  brightness = map(brightness, lowRange+knob_Normalised, highRange, lowRange, highRange);
   int output;
-  if(brightness < 0){
-    output = 0;
+  
+  if(brightness < minCCvalue){
+    output = minCCvalue;
   }
-  else if(brightness > 127){//sett the max value
-    output = 127;
+  else if(brightness > maxCCvalue){//sett the max value
+    output = maxCCvalue;
   }
   else{
     output = brightness;
   }
-  speakerColours[sensorNum] = strip.gamma32(strip.ColorHSV(paleBlueHue - paleBlueHue*output/127, 255, 255));
+  if(channelAndNumber[sensorNum][0] == 0){
+    speakerColours[sensorNum] = strip.gamma32(strip.ColorHSV(0, 0, 0));
+  }
+  else{
+    speakerColours[sensorNum] = strip.gamma32(strip.ColorHSV(paleBlueHue - paleBlueHue*output/127, 255, 255));
+  }
   return output;
 }
 
@@ -180,7 +193,7 @@ void learnMode(){ //activated when switch is "off", sends a near constant stream
       else{ //reset value, moove on to the next channel/ccnumber
         value = 1;
         activeControlNumber ++;
-        if(activeControlNumber >= 25){
+        if(activeControlNumber >= 24){
           activeControlNumber = 0;
         }
         if(activeControlNumber < 24){
@@ -238,10 +251,17 @@ void listenMode(){ //activated when switch is "on"
      }
 
     int value = outputValue(i); //read current value
-
-    if(value != highLowValues[i][2]){ //Check if the value has changed, if it has, update the stored value and send a midi signal.
-      highLowValues[i][2] = value;
-      usbMIDI.sendControlChange(channelAndNumber[i][1], value, channelAndNumber[i][0]); //first argument is the cc number, last argument is the channel.
+    if(channelAndNumber[i][0] > 0){ //ignore disabled pins
+      if(value != highLowValues[i][2] || cyclesSinceLastChange[i] < 3){ //Check if the value has changed, if it has, update the stored value and send a midi signal.
+        if(value != highLowValues[i][2]){
+          cyclesSinceLastChange[i] = 0;
+        }
+        else{
+          cyclesSinceLastChange[i]++;
+        }
+        highLowValues[i][2] = value;
+        usbMIDI.sendControlChange(channelAndNumber[i][1], value, channelAndNumber[i][0]); //first argument to sendControlChange is the cc number, last argument is the channel.
+      }
     }
   }
 
